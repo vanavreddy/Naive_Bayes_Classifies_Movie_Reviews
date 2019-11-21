@@ -13,10 +13,16 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords 
 from nltk.stem import PorterStemmer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import BernoulliNB
 
 
 ###############################################################################
 
+#Function is used for extract text after cleaning up the stopwords
+#Input: text from document
+#Output: Cleaned text without stopwords
+#Since the choice-1 requires no pre-processing, I ended up not using this for final results
+'''
 def extract_words(text):    
     #ignore = ['a', "the", "is"]  
     #Stopwords list generated from nltk and copied here
@@ -46,7 +52,11 @@ def extract_words(text):
     clean_text = [w.lower() for w in words if w not in stopwords]    
     
     return clean_text
+'''
 
+#Function to find similarity between two words
+#Input: Two words, word is dictionary word, the_word is a word in text read from document
+#Output: similarity number between two words
 def similar_text(word, the_word):
    
     similar = 0.0
@@ -58,6 +68,9 @@ def similar_text(word, the_word):
     
     return similar
 
+#Function is used find similar words in text, if similar words are found replace with word from dictionary
+#Input: text from document
+#Output: similar words replace in text with words from dictionary
 def match_text(vocabulary, cleaned_text):
     
     #I came up with this list by looking and the given dictionary words
@@ -90,6 +103,9 @@ def match_text(vocabulary, cleaned_text):
     #print("After Matching:\n", cleaned_text)        
     return cleaned_text
 
+#Function to split text into words and match simiar words 
+#Input: dictionary, text from document
+#Output: text with similar words matched and replaced
 def extract_and_match_text(vocabulary, text):
     
     #split the text into words
@@ -100,6 +116,9 @@ def extract_and_match_text(vocabulary, text):
     
     return matched_text
 
+#Function is used transform document into Bag of Words representation
+#Input: File/document, dictionary, choice
+#Output: Bag of Words from given document
 def transfer(fileDj, vocabulary, choice):
     
     BOWDj = np.zeros(len(vocabulary), dtype='int64')
@@ -123,6 +142,7 @@ def transfer(fileDj, vocabulary, choice):
         print(len(matched_text))
         #print(matched_text) 
         '''
+        
         found = 0
         for the_word in matched_text:  
             for i, word in enumerate(vocabulary): 
@@ -160,7 +180,6 @@ def transfer(fileDj, vocabulary, choice):
         for w in cleaned_text:
             stemmed_text.append(ps.stem(w))
             
-        print(len(stemmed_text))
         #print(stemmed_text)   
         found = 0
         for the_word in stemmed_text:  
@@ -180,7 +199,9 @@ def transfer(fileDj, vocabulary, choice):
         
     return BOWDj
 
-
+#Function read all the training and testing documents 
+#Input: Absolute file system path to the data sets
+#Output: Matrices Xtrain, Xtest, ytrain and ytest
 def loadData(Path):
     
     #open dictionary and read into standard vocabulary
@@ -193,7 +214,7 @@ def loadData(Path):
     Xtrain, Xtest, ytrain, ytest = [], [], [], []
     data = []
     #Process Taining Data
-    print("\nGetting Training data")
+    #print("\nGetting Training data")
     training_data = os.path.join(Path, 'training_set')
     for rev_type in os.listdir(training_data):
 
@@ -205,28 +226,24 @@ def loadData(Path):
         rev_type = os.path.join(training_data, rev_type)
         for docj in os.listdir(rev_type):
             docj = os.path.join(rev_type, docj)
-            #Xtrain.append(transfer(docj, vocab, 1))
-            #ytrain.append(y_value)
             data.append([transfer(docj, vocab, 1), y_value])
     
-    #print("Shuffling xtrain and ytrain together")
-    #random.shuffle(data)
+    
     for x, y in data:
         Xtrain.append(x)
         ytrain.append(y)
     
-    #print(Xtrain[0])
-    #print(ytrain)
+    
     Xtrain = np.array(Xtrain)
     ytrain = np.array(ytrain)
     
-    print("Xtrain: ", Xtrain.shape)
-    print("Ytrain: ", ytrain.shape)
-    
-    
+    #print("Xtrain: ", Xtrain.shape)
+    #print("Ytrain: ", ytrain.shape)
+     
+    CHOICE = 1
     data = []
     #Process Test Data
-    print("\nGetting Test data")
+    #print("\nGetting Test data")
     test_data = os.path.join(Path, 'test_set')
     for rev_type in os.listdir(test_data):
 
@@ -238,103 +255,242 @@ def loadData(Path):
         rev_type = os.path.join(test_data, rev_type)
         for docj in os.listdir(rev_type):
             docj = os.path.join(rev_type, docj)
-            #Xtest.append(transfer(docj, vocab, 1))
-            #ytest.append(y_value)
-            data.append([transfer(docj, vocab, 1), y_value])
+            data.append([transfer(docj, vocab, CHOICE), y_value])
     
-    print("Shuffling xtrain and ytrain together")
-    random.shuffle(data)
     for x, y in data:
         Xtest.append(x)
         ytest.append(y)
     
-    #print(Xtest)
-    #print(ytest)
     Xtest = np.array(Xtest)
     ytest = np.array(ytest)
     
-    #print(Xtest.shape)
-    #print(ytest.shape)
+    #print("Xtest: ", Xtest.shape)
+    #print("Ytest: ", ytest.shape)
     
     return Xtrain, Xtest, ytrain, ytest
 
-
+#Function for training the model
+#Input: Xtrain, ytrain
+#Output: thetaPos, ThetaNeg
 def naiveBayesMulFeature_train(Xtrain, ytrain):
     
-    #My implementation
-    #Calculate P(Wi/cj), probability of word wi for given class cj
-    doc_num = 0
     a = 1 #smoothing factor
-    n = Xtrain.shape[1] # no.of words in vocabulary
-    d = 0 #Sum of all words in a given class, calculated below
+    v = Xtrain.shape[1] # no.of words in vocabulary
+    n = 0 #Sum of all words in a given class, calculated below
     
-    print(n)
-    
-    print(ytrain)
     doc_num = 0
     pos_Xtrain = []
     neg_Xtrain = []
+    
     #divide positive and negative cases, this may not be needed if we always assume
-    #that the data will be equally distributed and sorted. But I am generalizing it here
+    #that the data will be equally distributed and sorted. But, I am generalizing it here
+    #in case we get data mixed in 
+    doc_num = 0
     for docj in Xtrain:
-        if ytrain[doc_num] == -1:
+        if ytrain[doc_num] == 1:
             pos_Xtrain.append(docj)
-        else:
+        elif ytrain[doc_num] == -1:
             neg_Xtrain.append(docj)  
         doc_num += 1
+    prior_p = len(pos_Xtrain)/Xtrain.shape[0]
+    prior_n = len(neg_Xtrain)/Xtrain.shape[0]
     
+    #Calculate P(Wi/cj), probability of word wi for given class cj
+    ####### POSITIVE ############
+    n = np.sum(pos_Xtrain)
+    v_d = v + a * n
     #add all the counts of wi
     pos_Xtrain = np.sum(pos_Xtrain, axis=0)
-    #print(pos_Xtrain)
-    d = np.sum(pos_Xtrain)
-    n_d = n + d
     #add laplace smoothing
     pos_Xtrain = np.add(pos_Xtrain, a)
-    thetaPos = np.divide(pos_Xtrain, n_d)
-    #print("----Positive-----")
-    #print(thetaPos)
+    #multiply by p_cj=0.5
+    #pos_Xtrain = np.multiply(pos_Xtrain, prior_p)
+    thetaPos = np.divide(pos_Xtrain, v_d)
+    
+    ####### NEGATIVE ############
+    n = np.sum(neg_Xtrain)
+    v_d = v + a * n
     #add all the counts of wi
     neg_Xtrain = np.sum(neg_Xtrain, axis=0)
-    d = np.sum(pos_Xtrain)
-    n_d = n + d
     #add laplace smoothing
     neg_Xtrain = np.add(neg_Xtrain, a)
-    thetaNeg = np.divide(neg_Xtrain, n_d)
-    print("----Negative-----")
-    print(thetaNeg)
+    #multiply by p_cj=0.5
+    #neg_Xtrain = np.multiply(neg_Xtrain, prior_n)
+    thetaNeg = np.divide(neg_Xtrain, v_d)
     
     return thetaPos, thetaNeg
 
-
+#Function for testing the trained model - MNBC
+#Input: Xtest, ytest
+#Output: predictions, accuracy
 def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
     yPredict = []
     Accuracy = 0.0
+    #assuming we will always have 2 classes and equal number of samples in each class
+    #prior = 0.5
+    
+    #print("xtest shape: ", Xtest.shape, "ytest shape: ", ytest.shape, "theta shape: ", len(thetaPos))
+    #print("Actual Labels:" , ytest)
+    
+    for docj in Xtest:
+        prod_p = np.multiply(docj, np.log(thetaPos))
+        #prod_p = np.multiply(prod_p, prior)
+        sum_p = np.sum(prod_p)
+        #print("Sum Pos: ", sum_p)
+        
+        prod_n = np.multiply(docj, np.log(thetaNeg))
+        #prod_n = np.multiply(prod_n, prior)
+        sum_n = np.sum(prod_n)
+        #print("Sum Neg: ", sum_n)
+        
+        if sum_p > sum_n:
+            yPredict.append(1)
+        else:
+            yPredict.append(-1)
+    
+    #print("Predicted Labels:" , yPredict)
+    
+    total = 0
+    for i,j in zip(yPredict, ytest):
+        if i == j:
+            total +=1
+        else:
+            pass   
+    Accuracy = total/len(ytest) * 100
 
     return yPredict, Accuracy
 
-
+#Function for training and testing using sklearn
+#Input: Xtrain, ytrain, Xtest, ytest
+#Output: Accuracy
 def naiveBayesMulFeature_sk_MNBC(Xtrain, ytrain, Xtest, ytest):
-    #Check with library imeplementation
+    #SkLearn library imeplementation
 
-    clf = MultinomialNB(alpha=1.0, class_prior=None, fit_prior=True)
+    clf = MultinomialNB(alpha=1.0)
     clf.fit(Xtrain, ytrain)
-    print(clf.predict(Xtest))
-    print("Actual")
-    print(ytest)
-
+    
+    #predictions = clf.predict(Xtest)
+    #print("Predicted: ", predictions)
+    #print("Actual: ", ytest)
+    
+    score = clf.score(Xtest, ytest)
+    Accuracy = score * 100
+    
     return Accuracy
 
-'''
+#This function converts a integer matrix to binary matrix
+#Input: Integer matrix X
+#Output: Binary matrix X
+def convert_int_binary(X):
+    row_idx = 0
+    col_idx = 0
+
+    for row in X:
+        col_idx = 0
+        for elem in row:
+            if elem > 0:
+                X[row_idx][col_idx] = 1
+            col_idx += 1
+        
+        row_idx += 1
+        
+    return X
+
+#Function for training the model - BNBC
+#Input: Xtrain, ytrain
+#Output: thetaPosTrue, ThetaNegTrue
 def naiveBayesBernFeature_train(Xtrain, ytrain):
-
-    #return thetaPosTrue, thetaNegTrue
-
     
+    #Convert the integer count matrix to binary 1/0 matrix
+    convert_int_binary(Xtrain)
+    #print("Binary: ", Xtrain)
+    
+    a = 1 #smoothing factor
+    
+    doc_num = 0
+    pos_Xtrain = []
+    neg_Xtrain = []
+    
+    #divide positive and negative cases, this may not be needed if we always assume
+    #that the data will be equally distributed and sorted. But, I am generalizing it here
+    #in case we get data mixed in
+    doc_num = 0
+    for docj in Xtrain:
+        if ytrain[doc_num] == 1:
+            pos_Xtrain.append(docj)
+        elif ytrain[doc_num] == -1:
+            neg_Xtrain.append(docj)  
+        doc_num += 1
+    #no.of docs in pos and neg class
+    docs_p = len(pos_Xtrain)
+    docs_n = len(neg_Xtrain)
+    
+    #print("Num docs: ", docs_p, docs_n)
+    
+    #Count docs in class with occurance of word wi 
+    pos_doc_cnt = np.sum(pos_Xtrain, axis=0)
+    neg_doc_cnt = np.sum(neg_Xtrain, axis=0)
+    
+    thetaPosTrue = np.divide(np.add(pos_doc_cnt, a), docs_p + 2) 
+    thetaNegTrue = np.divide(np.add(neg_doc_cnt, a), docs_n + 2)
+    
+    return thetaPosTrue, thetaNegTrue
+    
+
 def naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue):
     yPredict = []
     
-    #return yPredict, Accuracy
-'''
+    #assuming we will always have 2 classes and equal number of samples in each class
+    prior = np.log(0.5)
+    
+    for docj in Xtest:
+        
+        prod_p = np.multiply(docj, np.log(thetaPosTrue))
+        #prod_p = np.multiply(prod_p, prior)
+        sum_p = np.sum(prod_p)
+        #print("Sum Pos: ", sum_p)
+        
+        prod_n = np.multiply(docj, np.log(thetaNegTrue))
+        #prod_n = np.multiply(prod_n, prior)
+        sum_n = np.sum(prod_n)
+        #print("Sum Neg: ", sum_n)
+        
+        if sum_p > sum_n:
+            yPredict.append(1)
+        else:
+            yPredict.append(-1)
+    
+    print("Predicted Labels:" , yPredict)
+    
+    print("Actual Labels:" , ytest)
+    
+    total = 0
+    for i,j in zip(yPredict, ytest):
+        if i == j:
+            total +=1
+        else:
+            pass   
+    Accuracy = total/len(ytest) * 100
+    
+    return yPredict, Accuracy
+
+#Function for training and testing using sklearn
+#Input: Xtrain, ytrain, Xtest, ytest
+#Output: Accuracy
+def naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest):
+    #SkLearn library imeplementation
+
+    clf = BernoulliNB(alpha=1.0)
+    clf.fit(Xtrain, ytrain)
+    
+    #predictions = clf.predict(Xtest)
+    #print("Predicted: ", predictions)
+    #print("Actual: ", ytest)
+    
+    score = clf.score(Xtest, ytest)
+    Accuracy = score * 100
+    
+    return Accuracy
 
 if __name__ == "__main__":
     '''
@@ -347,7 +503,8 @@ if __name__ == "__main__":
     '''
     
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/data_sets'
-    textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets'
+    textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets-5'
+    #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets'
 
 
     Xtrain, Xtest, ytrain, ytest = loadData(textDataSetsDirectoryFullPath)
@@ -360,19 +517,20 @@ if __name__ == "__main__":
     
     yPredict, Accuracy = naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg)
     print("MNBC classification accuracy =", Accuracy)
-    '''
+    
     
     Accuracy_sk = naiveBayesMulFeature_sk_MNBC(Xtrain, ytrain, Xtest, ytest)
     print("Sklearn MultinomialNB accuracy =", Accuracy_sk)
-
     '''
+    
     thetaPosTrue, thetaNegTrue = naiveBayesBernFeature_train(Xtrain, ytrain)
     print("thetaPosTrue =", thetaPosTrue)
     print("thetaNegTrue =", thetaNegTrue)
     print("--------------------")
-
+    
     yPredict, Accuracy = naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue)
     print("BNBC classification accuracy =", Accuracy)
-    print("--------------------")
     
-    '''
+    Accuracy_sk = naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest)
+    print("Sklearn BernoulliNB accuracy =", Accuracy_sk)
+    
