@@ -304,7 +304,7 @@ def naiveBayesMulFeature_train(Xtrain, ytrain):
     #add laplace smoothing
     pos_Xtrain = np.add(pos_Xtrain, a)
     #multiply by p_cj=0.5
-    #pos_Xtrain = np.multiply(pos_Xtrain, prior_p)
+    pos_Xtrain = np.multiply(pos_Xtrain, prior_p)
     thetaPos = np.divide(pos_Xtrain, v_d)
     
     ####### NEGATIVE ############
@@ -315,7 +315,7 @@ def naiveBayesMulFeature_train(Xtrain, ytrain):
     #add laplace smoothing
     neg_Xtrain = np.add(neg_Xtrain, a)
     #multiply by p_cj=0.5
-    #neg_Xtrain = np.multiply(neg_Xtrain, prior_n)
+    neg_Xtrain = np.multiply(neg_Xtrain, prior_n)
     thetaNeg = np.divide(neg_Xtrain, v_d)
     
     return thetaPos, thetaNeg
@@ -327,19 +327,19 @@ def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
     yPredict = []
     Accuracy = 0.0
     #assuming we will always have 2 classes and equal number of samples in each class
-    #prior = 0.5
+    prior = 0.5
     
     #print("xtest shape: ", Xtest.shape, "ytest shape: ", ytest.shape, "theta shape: ", len(thetaPos))
     #print("Actual Labels:" , ytest)
     
     for docj in Xtest:
         prod_p = np.multiply(docj, np.log(thetaPos))
-        #prod_p = np.multiply(prod_p, prior)
+        prod_p = np.multiply(prod_p, prior)
         sum_p = np.sum(prod_p)
         #print("Sum Pos: ", sum_p)
         
         prod_n = np.multiply(docj, np.log(thetaNeg))
-        #prod_n = np.multiply(prod_n, prior)
+        prod_n = np.multiply(prod_n, prior)
         sum_n = np.sum(prod_n)
         #print("Sum Neg: ", sum_n)
         
@@ -351,11 +351,12 @@ def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
     #print("Predicted Labels:" , yPredict)
     
     total = 0
-    for i,j in zip(yPredict, ytest):
+    for i, j in zip(yPredict, ytest):
         if i == j:
             total +=1
         else:
             pass   
+        
     Accuracy = total/len(ytest) * 100
 
     return yPredict, Accuracy
@@ -440,17 +441,21 @@ def naiveBayesBernFeature_train(Xtrain, ytrain):
 def naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue):
     yPredict = []
     
+    convert_int_binary(Xtest)
+    
     #assuming we will always have 2 classes and equal number of samples in each class
     prior = np.log(0.5)
     
     for docj in Xtest:
         
         prod_p = np.multiply(docj, np.log(thetaPosTrue))
+        prod_p = np.multiply(prod_p, np.log(1-thetaPosTrue))
         #prod_p = np.multiply(prod_p, prior)
         sum_p = np.sum(prod_p)
         #print("Sum Pos: ", sum_p)
         
         prod_n = np.multiply(docj, np.log(thetaNegTrue))
+        prod_n = np.multiply(prod_n, np.log(1-thetaNegTrue))
         #prod_n = np.multiply(prod_n, prior)
         sum_n = np.sum(prod_n)
         #print("Sum Neg: ", sum_n)
@@ -460,12 +465,11 @@ def naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue):
         else:
             yPredict.append(-1)
     
-    print("Predicted Labels:" , yPredict)
-    
-    print("Actual Labels:" , ytest)
+    #print("Predicted Labels:" , yPredict)
+    #print("Actual Labels:" , ytest)
     
     total = 0
-    for i,j in zip(yPredict, ytest):
+    for i, j in zip(yPredict, ytest):
         if i == j:
             total +=1
         else:
@@ -502,8 +506,8 @@ if __name__ == "__main__":
     textDataSetsDirectoryFullPath = sys.argv[1]
     '''
     
-    #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/data_sets'
-    textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets-5'
+    textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/data_sets'
+    #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets-5'
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets'
 
 
