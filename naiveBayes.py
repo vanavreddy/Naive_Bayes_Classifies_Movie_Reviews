@@ -1,5 +1,10 @@
 #!/usr/bin/python
 
+#Author: Vanamala Venkataswamy
+#Date: 11-27-2019
+#This program classifies the movie reviews (text data) into 
+#positive or negative review using MNBC and BNBC models
+
 import sys
 import os
 import re
@@ -207,7 +212,7 @@ def transfer(fileDj, vocabulary, choice):
 def loadData(Path):
     
     vocab = []
-    CHOICE = 2
+    CHOICE = 1
     k = 2000
     
     if CHOICE == 1:
@@ -495,19 +500,21 @@ def naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest):
     return Accuracy
 
 if __name__ == "__main__":
-    '''
+    
     if len(sys.argv) != 2:
         print("Usage: python naiveBayes.py dataSetPath")
         sys.exit()
 
     print("--------------------")
     textDataSetsDirectoryFullPath = sys.argv[1]
-    '''
     
-    textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/data_sets'
+    #For testing
+    '''
+    #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/data_sets'
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets-5'
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets'
-
+    '''
+    
     Xtrain, Xtest, ytrain, ytest = loadData(textDataSetsDirectoryFullPath)
     
     thetaPos, thetaNeg = naiveBayesMulFeature_train(Xtrain, ytrain)
