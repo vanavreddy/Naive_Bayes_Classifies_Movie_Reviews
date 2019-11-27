@@ -151,8 +151,8 @@ def transfer(fileDj, vocabulary, choice):
                     #print("Matched: ", word, the_word)
                     BOWDj[i] += 1
                     found += 1
-            
-        BOWDj[-1] = len(matched_text) - found
+        #removing UKN count per Professors post on Piazza   
+        #BOWDj[-1] = len(matched_text) - found
         
         #print(np.array(BOWDj))
         
@@ -189,7 +189,7 @@ def transfer(fileDj, vocabulary, choice):
                     #print("Matched: ", word, the_word)
                     BOWDj[i] += 1
                     found += 1
-                    
+         
         BOWDj[-1] = len(stemmed_text) - found
                                  
         #print(np.array(BOWDj))
@@ -203,7 +203,7 @@ def transfer(fileDj, vocabulary, choice):
 #Input: Absolute file system path to the data sets
 #Output: Matrices Xtrain, Xtest, ytrain and ytest
 def loadData(Path):
-    
+    CHOICE = 1
     #open dictionary and read into standard vocabulary
     dictionary = os.path.join(Path, '../dictionary.txt')
     with open(dictionary, 'r') as file:
@@ -226,21 +226,16 @@ def loadData(Path):
         rev_type = os.path.join(training_data, rev_type)
         for docj in os.listdir(rev_type):
             docj = os.path.join(rev_type, docj)
-            data.append([transfer(docj, vocab, 1), y_value])
+            data.append([transfer(docj, vocab, CHOICE), y_value])
     
     
     for x, y in data:
         Xtrain.append(x)
         ytrain.append(y)
     
-    
     Xtrain = np.array(Xtrain)
     ytrain = np.array(ytrain)
-    
-    #print("Xtrain: ", Xtrain.shape)
-    #print("Ytrain: ", ytrain.shape)
      
-    CHOICE = 1
     data = []
     #Process Test Data
     #print("\nGetting Test data")
@@ -263,9 +258,6 @@ def loadData(Path):
     
     Xtest = np.array(Xtest)
     ytest = np.array(ytest)
-    
-    #print("Xtest: ", Xtest.shape)
-    #print("Ytest: ", ytest.shape)
     
     return Xtrain, Xtest, ytrain, ytest
 
@@ -447,18 +439,16 @@ def naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue):
     prior = np.log(0.5)
     
     for docj in Xtest:
+        sum_p = prior
+        sum_n = prior
         
+        # since we have taken biray values of the docj, this operation is same 
+        # as sum_p += np.log(thetaPosTrue) for each element in docj
         prod_p = np.multiply(docj, np.log(thetaPosTrue))
-        prod_p = np.multiply(prod_p, np.log(1-thetaPosTrue))
-        #prod_p = np.multiply(prod_p, prior)
         sum_p = np.sum(prod_p)
-        #print("Sum Pos: ", sum_p)
         
         prod_n = np.multiply(docj, np.log(thetaNegTrue))
-        prod_n = np.multiply(prod_n, np.log(1-thetaNegTrue))
-        #prod_n = np.multiply(prod_n, prior)
         sum_n = np.sum(prod_n)
-        #print("Sum Neg: ", sum_n)
         
         if sum_p > sum_n:
             yPredict.append(1)
@@ -487,10 +477,6 @@ def naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest):
     clf = BernoulliNB(alpha=1.0)
     clf.fit(Xtrain, ytrain)
     
-    #predictions = clf.predict(Xtest)
-    #print("Predicted: ", predictions)
-    #print("Actual: ", ytest)
-    
     score = clf.score(Xtest, ytest)
     Accuracy = score * 100
     
@@ -513,7 +499,7 @@ if __name__ == "__main__":
 
     Xtrain, Xtest, ytrain, ytest = loadData(textDataSetsDirectoryFullPath)
 
-    '''
+    
     thetaPos, thetaNeg = naiveBayesMulFeature_train(Xtrain, ytrain)
     print("thetaPos =", thetaPos)
     print("thetaNeg =", thetaNeg)
@@ -525,7 +511,7 @@ if __name__ == "__main__":
     
     Accuracy_sk = naiveBayesMulFeature_sk_MNBC(Xtrain, ytrain, Xtest, ytest)
     print("Sklearn MultinomialNB accuracy =", Accuracy_sk)
-    '''
+    
     
     thetaPosTrue, thetaNegTrue = naiveBayesBernFeature_train(Xtrain, ytrain)
     print("thetaPosTrue =", thetaPosTrue)
@@ -534,7 +520,9 @@ if __name__ == "__main__":
     
     yPredict, Accuracy = naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue)
     print("BNBC classification accuracy =", Accuracy)
-    
+   
+    #For verification
+    '''
     Accuracy_sk = naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest)
     print("Sklearn BernoulliNB accuracy =", Accuracy_sk)
-    
+    '''
