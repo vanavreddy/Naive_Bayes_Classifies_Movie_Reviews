@@ -9,10 +9,13 @@ import random
 from collections import Counter
 nltk.download('punkt', quiet = True)
 nltk.download('stopwords', quiet = True)
+nltk.download('movie_reviews', quiet = True)
 from nltk.tokenize import RegexpTokenizer
+from nltk.corpus import movie_reviews
 from nltk.corpus import stopwords 
 from nltk.stem import PorterStemmer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.naive_bayes import BernoulliNB
 
 
@@ -151,7 +154,7 @@ def transfer(fileDj, vocabulary, choice):
                     #print("Matched: ", word, the_word)
                     BOWDj[i] += 1
                     found += 1
-        #removing UKN count per Professors post on Piazza   
+        #removing UKN count per post on Piazza   
         #BOWDj[-1] = len(matched_text) - found
         
         #print(np.array(BOWDj))
@@ -159,7 +162,6 @@ def transfer(fileDj, vocabulary, choice):
     elif (choice == 2):
         #NLTK
         stop_words = []
-        #print("Choice 2")
         #RegEx for selecting only alphanumerics chars, drops others
         tokenizer = RegexpTokenizer(r'\w+')
         #Tokenize the words
@@ -179,7 +181,7 @@ def transfer(fileDj, vocabulary, choice):
         stemmed_text=[]
         for w in cleaned_text:
             stemmed_text.append(ps.stem(w))
-            
+        
         #print(stemmed_text)   
         found = 0
         for the_word in stemmed_text:  
@@ -191,7 +193,7 @@ def transfer(fileDj, vocabulary, choice):
                     found += 1
          
         BOWDj[-1] = len(stemmed_text) - found
-                                 
+                             
         #print(np.array(BOWDj))
     else:
         print("Unknow Choice\n")
@@ -203,12 +205,21 @@ def transfer(fileDj, vocabulary, choice):
 #Input: Absolute file system path to the data sets
 #Output: Matrices Xtrain, Xtest, ytrain and ytest
 def loadData(Path):
-    CHOICE = 1
-    #open dictionary and read into standard vocabulary
-    dictionary = os.path.join(Path, '../dictionary.txt')
-    with open(dictionary, 'r') as file:
-            vocab = file.read().split()
     
+    vocab = []
+    CHOICE = 2
+    k = 2000
+    
+    if CHOICE == 1:
+        #open dictionary and read into standard vocabulary
+        dictionary = os.path.join(Path, '../dictionary.txt')
+        with open(dictionary, 'r') as file:
+                vocab = file.read().split()
+    elif CHOICE == 2:
+        #build dictionary from NLTK movie_reviews corpus
+        all_words = nltk.FreqDist(w.lower() for w in movie_reviews.words())
+        vocab = list(all_words)[:k]
+        
     #print("Vocabulary:\n", vocab)
     
     Xtrain, Xtest, ytrain, ytest = [], [], [], []
@@ -321,9 +332,6 @@ def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
     #assuming we will always have 2 classes and equal number of samples in each class
     prior = 0.5
     
-    #print("xtest shape: ", Xtest.shape, "ytest shape: ", ytest.shape, "theta shape: ", len(thetaPos))
-    #print("Actual Labels:" , ytest)
-    
     for docj in Xtest:
         prod_p = np.multiply(docj, np.log(thetaPos))
         prod_p = np.multiply(prod_p, prior)
@@ -341,6 +349,7 @@ def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
             yPredict.append(-1)
     
     #print("Predicted Labels:" , yPredict)
+    #print("Actual Labels:" , ytest)
     
     total = 0
     for i, j in zip(yPredict, ytest):
@@ -358,13 +367,16 @@ def naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg):
 #Output: Accuracy
 def naiveBayesMulFeature_sk_MNBC(Xtrain, ytrain, Xtest, ytest):
     #SkLearn library imeplementation
-
+    #scaler = MinMaxScaler(feature_range=(0, 1), copy=True)
+    #Xtrain = scaler.fit_transform(Xtrain)
+    
     clf = MultinomialNB(alpha=1.0)
     clf.fit(Xtrain, ytrain)
     
     #predictions = clf.predict(Xtest)
     #print("Predicted: ", predictions)
     #print("Actual: ", ytest)
+    
     
     score = clf.score(Xtest, ytest)
     Accuracy = score * 100
@@ -496,9 +508,7 @@ if __name__ == "__main__":
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets-5'
     #textDataSetsDirectoryFullPath = '/Users/vanareddy/Fall2019-ML/ML-PA5/test-data_sets'
 
-
     Xtrain, Xtest, ytrain, ytest = loadData(textDataSetsDirectoryFullPath)
-
     
     thetaPos, thetaNeg = naiveBayesMulFeature_train(Xtrain, ytrain)
     print("thetaPos =", thetaPos)
@@ -507,7 +517,6 @@ if __name__ == "__main__":
     
     yPredict, Accuracy = naiveBayesMulFeature_test(Xtest, ytest, thetaPos, thetaNeg)
     print("MNBC classification accuracy =", Accuracy)
-    
     
     Accuracy_sk = naiveBayesMulFeature_sk_MNBC(Xtrain, ytrain, Xtest, ytest)
     print("Sklearn MultinomialNB accuracy =", Accuracy_sk)
@@ -520,7 +529,7 @@ if __name__ == "__main__":
     
     yPredict, Accuracy = naiveBayesBernFeature_test(Xtest, ytest, thetaPosTrue, thetaNegTrue)
     print("BNBC classification accuracy =", Accuracy)
-   
+    
     #For verification
     '''
     Accuracy_sk = naiveBayesMulFeature_sk_BNBC(Xtrain, ytrain, Xtest, ytest)
